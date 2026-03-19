@@ -39,8 +39,20 @@ def generate_meal_plan(
     days: int = 7,
     household_size: int = 2,
     preferences: str = "",
+    vegan_days: list[str] | None = None,
+    aldi_mode: bool = False,
+    wishes: dict | None = None,
 ) -> dict:
     """Generate a weekly meal plan with grocery list using Claude.
+
+    Args:
+        api_key: Anthropic API key.
+        days: Number of days to plan.
+        household_size: Number of people.
+        preferences: Dietary preferences string.
+        vegan_days: List of day names that should be vegan (e.g. ["Mittwoch", "Freitag"]).
+        aldi_mode: If True, only suggest ALDI-available ingredients.
+        wishes: Dict from essenswuensche.json with 'wuensche', 'ausschluesse', 'notizen'.
 
     Returns:
         Dict with 'meals' and 'grocery_list' keys.
@@ -51,8 +63,39 @@ def generate_meal_plan(
         f"Erstelle einen Essensplan fuer {days} Tage fuer {household_size} Personen "
         f"mit Mittag- und Abendessen."
     )
+
     if preferences:
         user_prompt += f"\n\nErnaehrungsvorlieben/Einschraenkungen: {preferences}"
+
+    if vegan_days:
+        days_str = ", ".join(vegan_days)
+        user_prompt += (
+            f"\n\nWICHTIG: An folgenden Tagen muessen ALLE Gerichte (Mittag und Abend) "
+            f"komplett vegan sein: {days_str}. "
+            f"Kennzeichne diese Gerichte im Namen nicht extra, sie sollen einfach vegan sein."
+        )
+
+    if aldi_mode:
+        user_prompt += (
+            "\n\nALDI-MODUS: Schlage nur Gerichte vor, deren Zutaten bei ALDI "
+            "(ALDI Sued/Nord, Deutschland) erhaeltlich sind. Vermeide exotische oder "
+            "spezielle Zutaten, die man nur in Biolaeden oder Feinkostgeschaeften findet. "
+            "Nutze gaengige ALDI-Eigenmarken-Produkte wo moeglich."
+        )
+
+    if wishes:
+        if wishes.get("wuensche"):
+            wuensche_str = ", ".join(wishes["wuensche"])
+            user_prompt += (
+                f"\n\nGewuenschte Gerichte (bitte moeglichst einbauen): {wuensche_str}"
+            )
+        if wishes.get("ausschluesse"):
+            ausschluss_str = ", ".join(wishes["ausschluesse"])
+            user_prompt += (
+                f"\n\nAusgeschlossene Lebensmittel/Gerichte (NICHT verwenden): {ausschluss_str}"
+            )
+        if wishes.get("notizen"):
+            user_prompt += f"\n\nWeitere Hinweise: {wishes['notizen']}"
 
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
